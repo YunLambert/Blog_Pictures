@@ -8,9 +8,10 @@ path = "./back_up/"
 url = "https://www.cnblogs.com/yunlambert/p/"
 model = 'http://equations.online/'
 
-def download(DownUrl,DownPath,OutPutFileName):
-    IDM=r'D:\yun_install_software\IDM\IDMan.exe'
-    DownPath=r'E:\workstation\Github\Blog_Pictures'
+
+def download(DownUrl, DownPath, OutPutFileName):
+    IDM = r'D:\yun_install_software\IDM\IDMan.exe'
+    DownPath = r'E:\workstation\Github\Blog_Pictures'
     call([IDM, '/d', DownUrl, '/p', DownPath, '/f', OutPutFileName, '/n'])
 
 
@@ -28,56 +29,88 @@ def get_url(url):
         print('访问 http 发生错误... ')
         return None
 
-def get_article_url():
-    pass
+
+def get_pages(post_page):
+    pages = []
+    while True:
+        try:
+            post_pages = post_page.find_all(name="a")[-2].get('href')
+            temp = get_url("https://www.cnblogs.com" + post_pages)
+            post_page = BeautifulSoup(temp, "lxml")
+            pages.append("https://www.cnblogs.com" + post_pages)
+            #print(post_pages)
+        except Exception as e:
+            print(Exception, ":", e)
+            break
+    return pages
+
 
 def main():
-    folder=os.path.exists(path)
+    folder = os.path.exists(path)
     if not folder:
         os.makedirs(path)
-    html=get_url(url)
-    soup=BeautifulSoup(html,"lxml")
+    html = get_url(url)
+    soup = BeautifulSoup(html, "lxml")
 
-    
-    post_page_1 = soup.find_all(name='div', attrs={"class": "Pager"})
-    post_pages=post_page_1.a.get('href')
-    Dictionary_post_page = {}
+    post_page_1 = soup.find(name='div', attrs={"class": "Pager"})
+    post_page = get_pages(post_page_1)
+    post_page.insert(0, "https://www.cnblogs.com/yunlambert/p/?page=1")
+    print(post_page)
+    post_article = []
 
-    for i in range(0,len(post_page)) :
-        link=post_page[i]
+    for i in range(0, len(post_page)):
+        link = post_page[i]
+        page = BeautifulSoup(get_url(link), "lxml")
+        try:
+            article = page.find_all(name="div", attrs={"class": "postTitl2"})
+            for j in range(0, len(article)):
+                post_article.append(article[j].a.get("href"))
 
-    i = 0
-    for posts in post_page:
-        # 去除标题的前后空格
-        title = post[i].h2.get_text()
-        subject = re.sub("\A\s+", "", title)
-        post_title = re.sub("\s+\Z", "", subject)
+        except Exception as e:
+            print(Exception, ":", e)
+            continue
+    print(post_article)
 
-        post_url = model + post[i].a.get('href')
-        Dictionary_post[post_title] = post_url
-        i += 1
-
-    # 解析每一篇博客段落中的图片
     img_url_list = []
-    for key, value in Dictionary_post.items():
-        print(key + ':' + value)
-        all_html = get_one_page(value)
-        soup = BeautifulSoup(all_html, "lxml")
+    k=0
+    for i in range(0, len(post_article)):
+        print("new article....")
+        m = get_url(post_article[i])
+        soup_article = BeautifulSoup(m, "lxml")
 
         replace_pattern = r'<[img|IMG].*?/>'  # img标签的正则式
         img_url_pattern = r'.+?src="(\S+)"'  # img_url的正则式
 
         # 只在段落中查找图片
-        need_replace_list = re.findall(replace_pattern, str(soup.find_all('p')))  # 找到所有的img标签
+        need_replace_list = re.findall(replace_pattern, str(soup_article.find_all('p')))  # 找到所有的img标签
         for tag in need_replace_list:
             if re.findall(img_url_pattern, tag) != []:
-                if re.findall(img_url_pattern, tag)[0][1:4] != "img":  # 这里去除掉引用相对路径的图片，因为这些图片在我的仓库里，不需要备份
-                    mkdir(r"equation_blog" + '\\' + key)  # 按博客标题生成文件夹
-                    download_path = '\\' + key + '\\'
-                    download_name = re.findall(img_url_pattern, tag)[0].split('/')[-1]
-                    download_IDM(re.findall(img_url_pattern, tag)[0], download_path, download_name)
-                    print(re.findall(img_url_pattern, tag)[0])
-                    img_url_list.append(re.findall(img_url_pattern, tag)[0])  # 找到所有的img_url
+                #mkdir(r"equation_blog" + '\\' + key)  # 按博客标题生成文件夹
+                download_path = "E:\\workstation\\Github\\Blog_Pictures\\back_up\\"
+                download_name = str(k)
+                k=k+1
+                download(re.findall(img_url_pattern, tag)[0], download_path, download_name)
+                print(re.findall(img_url_pattern, tag)[0])
+                img_url_list.append(re.findall(img_url_pattern, tag)[0])  # 找到所有的img_url
+
+    # i = 0
+    # for posts in post_page:
+    #     # 去除标题的前后空格
+    #     title = post[i].h2.get_text()
+    #     subject = re.sub("\A\s+", "", title)
+    #     post_title = re.sub("\s+\Z", "", subject)
+    #
+    #     post_url = model + post[i].a.get('href')
+    #     Dictionary_post[post_title] = post_url
+    #     i += 1
+
+    # 解析每一篇博客段落中的图片
+
+    # for key, value in Dictionary_post.items():
+    #     print(key + ':' + value)
+    #     all_html = get_one_page(value)
+    #     soup = BeautifulSoup(all_html, "lxml")
+    #
 
 
 if __name__ == "__main__":
